@@ -146,9 +146,9 @@ Seeded data is intended for local development and manual API checks.
 
 ### Health
 
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `GET` | `/api/health` | Basic API health check |
+| Method | Endpoint      | Description            |
+|--------|---------------|------------------------|
+| `GET`  | `/api/health` | Basic API health check |
 
 Response example:
 
@@ -160,11 +160,11 @@ Response example:
 
 ### Flights
 
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `POST` | `/api/flights` | Create a flight |
-| `GET` | `/api/flights` | List flights |
-| `GET` | `/api/flights/{id}` | Get a single flight |
+| Method | Endpoint            | Description         |
+|--------|---------------------|---------------------|
+| `POST` | `/api/flights`      | Create a flight     |
+| `GET`  | `/api/flights`      | List flights        |
+| `GET`  | `/api/flights/{id}` | Get a single flight |
 
 Flight creation rules:
 - `flight_number` is required
@@ -254,10 +254,10 @@ Response example for `GET /api/flights/{id}`:
 
 ### Passengers
 
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `POST` | `/api/passengers` | Create a passenger |
-| `GET` | `/api/passengers/{id}` | Get a single passenger |
+| Method | Endpoint               | Description            |
+|--------|------------------------|------------------------|
+| `POST` | `/api/passengers`      | Create a passenger     |
+| `GET`  | `/api/passengers/{id}` | Get a single passenger |
 
 Passenger creation rules:
 - `first_name` is required
@@ -291,6 +291,135 @@ Response example for `POST /api/passengers`:
     "document_number": "AB123456",
     "created_at": "2026-04-22T12:00:00+00:00",
     "updated_at": "2026-04-22T12:00:00+00:00"
+  }
+}
+```
+
+### Reservations
+
+| Method | Endpoint                         | Description                       |
+|--------|----------------------------------|-----------------------------------|
+| `POST` | `/api/flights/{id}/reservations` | Create a reservation for a flight |
+| `GET`  | `/api/reservations/{id}`         | Get a single reservation          |
+| `GET`  | `/api/flights/{id}/manifest`     | Get flight manifest               |
+
+Reservation creation rules:
+- `passenger_id` is required and must reference an existing passenger
+- `seat_number` is required and must match rows `1-36` with seat letters `A-F`
+- an active reservation cannot reuse the same seat on the same flight
+- an active reservation cannot book the same passenger twice on the same flight
+- cancelled reservations do not block rebooking the same seat
+- cancelled reservations do not block rebooking the same passenger on the same flight
+- reservations are rejected for `cancelled` and `departed` flights
+- new reservations default to `booked`
+
+Request example for `POST /api/flights/{id}/reservations`:
+
+```json
+{
+  "passenger_id": 5,
+  "seat_number": "12C"
+}
+```
+
+Response example for `POST /api/flights/{id}/reservations`:
+
+```json
+{
+  "data": {
+    "id": 9,
+    "seat_number": "12C",
+    "status": "booked",
+    "checked_in_at": null,
+    "boarding_pass_code": null,
+    "flight": {
+      "id": 1,
+      "flight_number": "PS555",
+      "status": "scheduled",
+      "departure_at": "2026-05-10T10:30:00+00:00"
+    },
+    "passenger": {
+      "id": 5,
+      "first_name": "Iryna",
+      "last_name": "Melnyk",
+      "email": "iryna.melnyk@example.test",
+      "document_number": "AB123456"
+    },
+    "created_at": "2026-04-22T12:00:00+00:00",
+    "updated_at": "2026-04-22T12:00:00+00:00"
+  }
+}
+```
+
+Response example for `GET /api/reservations/{id}`:
+
+```json
+{
+  "data": {
+    "id": 9,
+    "seat_number": "12C",
+    "status": "booked",
+    "checked_in_at": null,
+    "boarding_pass_code": null,
+    "flight": {
+      "id": 1,
+      "flight_number": "PS555",
+      "status": "scheduled",
+      "departure_at": "2026-05-10T10:30:00+00:00"
+    },
+    "passenger": {
+      "id": 5,
+      "first_name": "Iryna",
+      "last_name": "Melnyk",
+      "email": "iryna.melnyk@example.test",
+      "document_number": "AB123456"
+    },
+    "created_at": "2026-04-22T12:00:00+00:00",
+    "updated_at": "2026-04-22T12:00:00+00:00"
+  }
+}
+```
+
+Response example for `GET /api/flights/{id}/manifest`:
+
+```json
+{
+  "data": {
+    "flight": {
+      "id": 1,
+      "flight_number": "PS555",
+      "origin": "KBP",
+      "destination": "AMS",
+      "departure_at": "2026-05-10T10:30:00+00:00",
+      "departed_at": null,
+      "status": "scheduled"
+    },
+    "reservations": [
+      {
+        "id": 9,
+        "seat_number": "12A",
+        "status": "booked",
+        "passenger": {
+          "id": 3,
+          "first_name": "Anna",
+          "last_name": "Shevchenko",
+          "email": "anna.shevchenko@example.test",
+          "document_number": "ER123456"
+        }
+      },
+      {
+        "id": 10,
+        "seat_number": "14B",
+        "status": "booked",
+        "passenger": {
+          "id": 4,
+          "first_name": "Bohdan",
+          "last_name": "Koval",
+          "email": "bohdan.koval@example.test",
+          "document_number": "FF654321"
+        }
+      }
+    ]
   }
 }
 ```

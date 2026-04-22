@@ -9,6 +9,7 @@ tags:
   - name: Health
   - name: Flights
   - name: Passengers
+  - name: Reservations
 paths:
   /api/health:
     get:
@@ -81,6 +82,57 @@ paths:
                 $ref: '#/components/schemas/FlightResponse'
         '404':
           description: Flight not found
+  /api/flights/{id}/reservations:
+    post:
+      tags: [Reservations]
+      summary: Create reservation for a flight
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreReservationRequest'
+            example:
+              passenger_id: 5
+              seat_number: 12C
+      responses:
+        '201':
+          description: Reservation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /api/flights/{id}/manifest:
+    get:
+      tags: [Reservations]
+      summary: Get passenger manifest for a flight
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Flight manifest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightManifestResponse'
+        '404':
+          description: Flight not found
   /api/passengers:
     post:
       tags: [Passengers]
@@ -129,6 +181,25 @@ paths:
                 $ref: '#/components/schemas/PassengerResponse'
         '404':
           description: Passenger not found
+  /api/reservations/{id}:
+    get:
+      tags: [Reservations]
+      summary: Get reservation by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Reservation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '404':
+          description: Reservation not found
 components:
   schemas:
     HealthResponse:
@@ -230,6 +301,22 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Flight'
+    StoreReservationRequest:
+      type: object
+      required:
+        - passenger_id
+        - seat_number
+      properties:
+        passenger_id:
+          type: integer
+          example: 5
+        seat_number:
+          type: string
+          pattern: '^(?:[1-9]|[1-2][0-9]|3[0-6])[A-F]$'
+          example: 12C
+      description: >
+        Cancelled reservations do not block rebooking the same seat or the same
+        passenger on the same flight.
     StorePassengerRequest:
       type: object
       required:
@@ -302,6 +389,170 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/Passenger'
+    ReservationFlightSummary:
+      type: object
+      required:
+        - id
+        - flight_number
+        - status
+        - departure_at
+      properties:
+        id:
+          type: integer
+          example: 1
+        flight_number:
+          type: string
+          example: PS555
+        status:
+          type: string
+          enum: [scheduled, boarding, departed, delayed, cancelled]
+        departure_at:
+          type: string
+          format: date-time
+          example: '2026-05-10T10:30:00+00:00'
+    ManifestPassenger:
+      type: object
+      required:
+        - id
+        - first_name
+        - last_name
+        - email
+        - document_number
+      properties:
+        id:
+          type: integer
+          example: 5
+        first_name:
+          type: string
+          example: Iryna
+        last_name:
+          type: string
+          example: Melnyk
+        email:
+          type: string
+          format: email
+          example: iryna.melnyk@example.test
+        document_number:
+          type: string
+          example: AB123456
+    Reservation:
+      type: object
+      required:
+        - id
+        - seat_number
+        - status
+        - flight
+        - passenger
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          example: 9
+        seat_number:
+          type: string
+          example: 12C
+        status:
+          type: string
+          enum: [booked, checked_in, cancelled]
+        checked_in_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        boarding_pass_code:
+          type: string
+          nullable: true
+          example: null
+        flight:
+          $ref: '#/components/schemas/ReservationFlightSummary'
+        passenger:
+          $ref: '#/components/schemas/ManifestPassenger'
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-04-22T12:00:00+00:00'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-04-22T12:00:00+00:00'
+    ReservationResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Reservation'
+    ManifestReservation:
+      type: object
+      required:
+        - id
+        - seat_number
+        - status
+        - passenger
+      properties:
+        id:
+          type: integer
+          example: 9
+        seat_number:
+          type: string
+          example: 12A
+        status:
+          type: string
+          enum: [booked, checked_in, cancelled]
+        passenger:
+          $ref: '#/components/schemas/ManifestPassenger'
+    ManifestFlight:
+      type: object
+      required:
+        - id
+        - flight_number
+        - origin
+        - destination
+        - departure_at
+        - status
+      properties:
+        id:
+          type: integer
+          example: 1
+        flight_number:
+          type: string
+          example: PS555
+        origin:
+          type: string
+          example: KBP
+        destination:
+          type: string
+          example: AMS
+        departure_at:
+          type: string
+          format: date-time
+          example: '2026-05-10T10:30:00+00:00'
+        departed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        status:
+          type: string
+          enum: [scheduled, boarding, departed, delayed, cancelled]
+    FlightManifest:
+      type: object
+      required:
+        - flight
+        - reservations
+      properties:
+        flight:
+          $ref: '#/components/schemas/ManifestFlight'
+        reservations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManifestReservation'
+    FlightManifestResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/FlightManifest'
     ValidationErrorResponse:
       type: object
       required: [message, errors]
