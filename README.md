@@ -60,21 +60,22 @@ Run both from a clean state:
 php artisan migrate:fresh --seed
 ```
 
-## Health Check
+## Running Tests
 
-Basic API health endpoint:
+Run the full test suite:
 
-```text
-GET /api/health
+```bash
+php artisan test --compact
 ```
 
-Example response:
+Run specific feature tests:
 
-```json
-{
-  "status": "ok"
-}
+```bash
+php artisan test --compact tests/Feature/FlightsApiTest.php
+php artisan test --compact tests/Feature/PassengersApiTest.php
 ```
+
+The test suite is configured to use SQLite in memory.
 
 ## Domain Model
 
@@ -140,3 +141,173 @@ The project includes:
 - a reservation seeder that links sample passengers to a sample flight
 
 Seeded data is intended for local development and manual API checks.
+
+## API Endpoints
+
+### Health
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/api/health` | Basic API health check |
+
+Response example:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+### Flights
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `POST` | `/api/flights` | Create a flight |
+| `GET` | `/api/flights` | List flights |
+| `GET` | `/api/flights/{id}` | Get a single flight |
+
+Flight creation rules:
+- `flight_number` is required
+- `origin` is required and must be a 3-letter code
+- `destination` is required and must be a 3-letter code
+- `departure_at` is required, must be a valid datetime, and must be in the future
+- `status` is required and must be one of the allowed flight statuses
+
+Request example for `POST /api/flights`:
+
+```json
+{
+  "flight_number": "PS321",
+  "origin": "KBP",
+  "destination": "AMS",
+  "departure_at": "2026-05-10 10:30:00",
+  "status": "scheduled"
+}
+```
+
+Response example for `POST /api/flights`:
+
+```json
+{
+  "data": {
+    "id": 1,
+    "flight_number": "PS321",
+    "origin": "KBP",
+    "destination": "AMS",
+    "departure_at": "2026-05-10T10:30:00+00:00",
+    "departed_at": null,
+    "status": "scheduled",
+    "created_at": "2026-04-22T12:00:00+00:00",
+    "updated_at": "2026-04-22T12:00:00+00:00"
+  }
+}
+```
+
+Response example for `GET /api/flights`:
+
+```json
+{
+  "data": [
+    {
+      "id": 2,
+      "flight_number": "LH202",
+      "origin": "BER",
+      "destination": "FRA",
+      "departure_at": "2026-04-24T14:40:00+00:00",
+      "departed_at": null,
+      "status": "boarding",
+      "created_at": "2026-04-22T12:00:00+00:00",
+      "updated_at": "2026-04-22T12:00:00+00:00"
+    },
+    {
+      "id": 1,
+      "flight_number": "PS101",
+      "origin": "KBP",
+      "destination": "WAW",
+      "departure_at": "2026-04-23T09:15:00+00:00",
+      "departed_at": null,
+      "status": "scheduled",
+      "created_at": "2026-04-22T12:00:00+00:00",
+      "updated_at": "2026-04-22T12:00:00+00:00"
+    }
+  ]
+}
+```
+
+Response example for `GET /api/flights/{id}`:
+
+```json
+{
+  "data": {
+    "id": 1,
+    "flight_number": "PS101",
+    "origin": "KBP",
+    "destination": "WAW",
+    "departure_at": "2026-04-23T09:15:00+00:00",
+    "departed_at": null,
+    "status": "scheduled",
+    "created_at": "2026-04-22T12:00:00+00:00",
+    "updated_at": "2026-04-22T12:00:00+00:00"
+  }
+}
+```
+
+### Passengers
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `POST` | `/api/passengers` | Create a passenger |
+| `GET` | `/api/passengers/{id}` | Get a single passenger |
+
+Passenger creation rules:
+- `first_name` is required
+- `last_name` is required
+- `email` is required and must be valid
+- `birthday` is required and must be a valid date
+- `document_number` is required and must be unique
+
+Request example for `POST /api/passengers`:
+
+```json
+{
+  "first_name": "Iryna",
+  "last_name": "Melnyk",
+  "email": "iryna.melnyk@example.test",
+  "birthday": "1995-08-14",
+  "document_number": "AB123456"
+}
+```
+
+Response example for `POST /api/passengers`:
+
+```json
+{
+  "data": {
+    "id": 1,
+    "first_name": "Iryna",
+    "last_name": "Melnyk",
+    "email": "iryna.melnyk@example.test",
+    "birthday": "1995-08-14",
+    "document_number": "AB123456",
+    "created_at": "2026-04-22T12:00:00+00:00",
+    "updated_at": "2026-04-22T12:00:00+00:00"
+  }
+}
+```
+
+Response example for `GET /api/passengers/{id}`:
+
+```json
+{
+  "data": {
+    "id": 1,
+    "first_name": "Iryna",
+    "last_name": "Melnyk",
+    "email": "iryna.melnyk@example.test",
+    "birthday": "1995-08-14",
+    "document_number": "AB123456",
+    "created_at": "2026-04-22T12:00:00+00:00",
+    "updated_at": "2026-04-22T12:00:00+00:00"
+  }
+}
+```

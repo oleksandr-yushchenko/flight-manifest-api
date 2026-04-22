@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AppTest extends TestCase
@@ -10,10 +9,14 @@ class AppTest extends TestCase
     /**
      * A basic test.
      */
-    public function test_application_successful_response(): void
+    public function test_health_endpoint_returns_successful_response(): void
     {
-        $response = $this->get('/');
+        $response = $this->getJson('/api/health');
 
-        $response->assertStatus(200);
+        $response
+            ->assertOk()
+            ->assertJson([
+                'status' => 'ok',
+            ]);
     }
 }
