@@ -18,3 +18,7 @@ Route::get('flights/{flight}/manifest', [ReservationController::class, 'manifest
     ->name('flights.manifest.show');
 Route::get('reservations/{reservation}', [ReservationController::class, 'show'])
     ->name('reservations.show');
+Route::post('reservations/{reservation}/check-in', [ReservationController::class, 'checkIn'])
+    ->name('reservations.check-in');
+Route::post('reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])
+    ->name('reservations.cancel');

@@ -77,6 +77,24 @@ php artisan test --compact tests/Feature/PassengersApiTest.php
 
 The test suite is configured to use SQLite in memory.
 
+## Queue Processing
+
+Application jobs use Redis as the queue backend.
+
+Default environment value:
+
+```env
+QUEUE_CONNECTION=redis
+```
+
+The boarding pass generation job is queued on Redis with a 30-second delay after a successful check-in.
+
+Run a local worker:
+
+```bash
+php artisan queue:work redis --queue=boarding_pass --tries=3
+```
+
 ## Domain Model
 
 ### Flight
@@ -301,6 +319,8 @@ Response example for `POST /api/passengers`:
 |--------|----------------------------------|-----------------------------------|
 | `POST` | `/api/flights/{id}/reservations` | Create a reservation for a flight |
 | `GET`  | `/api/reservations/{id}`         | Get a single reservation          |
+| `POST` | `/api/reservations/{id}/check-in`| Check in a reservation            |
+| `POST` | `/api/reservations/{id}/cancel`  | Cancel a reservation              |
 | `GET`  | `/api/flights/{id}/manifest`     | Get flight manifest               |
 
 Reservation creation rules:
@@ -312,6 +332,10 @@ Reservation creation rules:
 - cancelled reservations do not block rebooking the same passenger on the same flight
 - reservations are rejected for `cancelled` and `departed` flights
 - new reservations default to `booked`
+- check-in is allowed only for `booked` reservations
+- check-in is rejected if the flight has already `departed`
+- successful check-in sets `checked_in_at`, changes status to `checked_in`, and queues asynchronous boarding pass generation
+- cancellation is allowed for `booked` and `checked_in` reservations and changes the status to `cancelled`
 
 Request example for `POST /api/flights/{id}/reservations`:
 
@@ -376,6 +400,76 @@ Response example for `GET /api/reservations/{id}`:
     },
     "created_at": "2026-04-22T12:00:00+00:00",
     "updated_at": "2026-04-22T12:00:00+00:00"
+  }
+}
+```
+
+Request example for `POST /api/reservations/{id}/check-in`:
+
+```json
+{}
+```
+
+Response example for `POST /api/reservations/{id}/check-in`:
+
+```json
+{
+  "data": {
+    "id": 9,
+    "seat_number": "12C",
+    "status": "checked_in",
+    "checked_in_at": "2026-04-22T12:05:00+00:00",
+    "boarding_pass_code": "PS555-12C-A1B2C3",
+    "flight": {
+      "id": 1,
+      "flight_number": "PS555",
+      "status": "scheduled",
+      "departure_at": "2026-05-10T10:30:00+00:00"
+    },
+    "passenger": {
+      "id": 5,
+      "first_name": "Iryna",
+      "last_name": "Melnyk",
+      "email": "iryna.melnyk@example.test",
+      "document_number": "AB123456"
+    },
+    "created_at": "2026-04-22T12:00:00+00:00",
+    "updated_at": "2026-04-22T12:05:00+00:00"
+  }
+}
+```
+
+Request example for `POST /api/reservations/{id}/cancel`:
+
+```json
+{}
+```
+
+Response example for `POST /api/reservations/{id}/cancel`:
+
+```json
+{
+  "data": {
+    "id": 9,
+    "seat_number": "12C",
+    "status": "cancelled",
+    "checked_in_at": "2026-04-22T12:05:00+00:00",
+    "boarding_pass_code": null,
+    "flight": {
+      "id": 1,
+      "flight_number": "PS555",
+      "status": "scheduled",
+      "departure_at": "2026-05-10T10:30:00+00:00"
+    },
+    "passenger": {
+      "id": 5,
+      "first_name": "Iryna",
+      "last_name": "Melnyk",
+      "email": "iryna.melnyk@example.test",
+      "document_number": "AB123456"
+    },
+    "created_at": "2026-04-22T12:00:00+00:00",
+    "updated_at": "2026-04-22T12:06:00+00:00"
   }
 }
 ```
