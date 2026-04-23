@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Flight Manifest API
-  version: 0.3.0
+  version: 0.4.0
   description: API for managing flights, passengers, and reservations.
 servers:
   - url: http://localhost
@@ -82,6 +82,49 @@ paths:
                 $ref: '#/components/schemas/FlightResponse'
         '404':
           description: Flight not found
+  /api/flights/{id}/sync-status:
+    post:
+      tags: [Flights]
+      summary: Sync flight status from external airline service
+      description: >
+        Calls a mock external airline API and updates the flight status,
+        departure_at, and optional gate.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Flight was synced successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightResponse'
+              example:
+                data:
+                  id: 1
+                  flight_number: PS101
+                  origin: KBP
+                  destination: WAW
+                  gate: A12
+                  departure_at: '2026-04-24T11:45:00+00:00'
+                  departed_at: null
+                  status: boarding
+                  created_at: '2026-04-22T12:00:00+00:00'
+                  updated_at: '2026-04-23T08:50:00+00:00'
+        '502':
+          description: External airline service failed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message:
+                    type: string
+                    example: Unable to sync flight status from external airline service.
   /api/flights/{id}/reservations:
     post:
       tags: [Reservations]
@@ -357,6 +400,10 @@ components:
         destination:
           type: string
           example: AMS
+        gate:
+          type: string
+          nullable: true
+          example: A12
         departure_at:
           type: string
           format: date-time

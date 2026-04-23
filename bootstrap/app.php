@@ -12,6 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function () {
             Route::middleware('api')->group(base_path('routes/docs.php'));
+            Route::middleware('api')->group(base_path('routes/mock-airline.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

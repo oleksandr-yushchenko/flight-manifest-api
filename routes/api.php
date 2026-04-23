@@ -11,6 +11,8 @@ Route::get('health', function (Request $request) {
 });
 
 Route::apiResource('flights', FlightController::class)->only(['index', 'store', 'show']);
+Route::post('flights/{flight}/sync-status', [FlightController::class, 'syncStatus'])
+    ->name('flights.sync-status');
 Route::apiResource('passengers', PassengerController::class)->only(['store', 'show']);
 Route::post('flights/{flight}/reservations', [ReservationController::class, 'store'])
     ->name('flights.reservations.store');

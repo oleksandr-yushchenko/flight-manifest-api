@@ -19,6 +19,7 @@ class FlightResource extends JsonResource
             'flight_number' => $this->flight_number,
             'origin' => $this->origin,
             'destination' => $this->destination,
+            'gate' => $this->gate,
             'departure_at' => $this->departure_at?->toIso8601String(),
             'departed_at' => $this->departed_at?->toIso8601String(),
             'status' => $this->status->value,

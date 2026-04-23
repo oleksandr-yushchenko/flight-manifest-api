@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'airline_status' => [
+        'base_url' => env('AIRLINE_STATUS_BASE_URL', 'http://localhost/mock-airline'),
+        'timeout' => (int) env('AIRLINE_STATUS_TIMEOUT', 10),
+    ],
+
 ];

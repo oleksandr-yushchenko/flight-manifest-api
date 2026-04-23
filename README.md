@@ -95,6 +95,13 @@ Run a local worker:
 php artisan queue:work redis --queue=boarding_pass --tries=3
 ```
 
+If you use Sail with the dedicated worker service:
+
+```bash
+./vendor/bin/sail up -d
+docker compose logs -f queue.worker
+```
+
 ## Domain Model
 
 ### Flight
@@ -176,13 +183,27 @@ Response example:
 }
 ```
 
+Validation / business error example:
+
+```json
+{
+  "message": "Unable to sync flight status from external airline service.",
+  "errors": {
+    "external_service": [
+      "Unable to sync flight status from external airline service."
+    ]
+  }
+}
+```
+
 ### Flights
 
-| Method | Endpoint            | Description         |
-|--------|---------------------|---------------------|
-| `POST` | `/api/flights`      | Create a flight     |
-| `GET`  | `/api/flights`      | List flights        |
-| `GET`  | `/api/flights/{id}` | Get a single flight |
+| Method | Endpoint                        | Description                                      |
+|--------|---------------------------------|--------------------------------------------------|
+| `POST` | `/api/flights`                  | Create a flight                                  |
+| `GET`  | `/api/flights`                  | List flights                                     |
+| `GET`  | `/api/flights/{id}`             | Get a single flight                              |
+| `POST` | `/api/flights/{id}/sync-status` | Sync flight status from external airline service |
 
 Flight creation rules:
 - `flight_number` is required
@@ -190,6 +211,7 @@ Flight creation rules:
 - `destination` is required and must be a 3-letter code
 - `departure_at` is required, must be a valid datetime, and must be in the future
 - `status` is required and must be one of the allowed flight statuses
+- `gate` is nullable and may be populated later by external status sync
 
 Request example for `POST /api/flights`:
 
@@ -203,6 +225,21 @@ Request example for `POST /api/flights`:
 }
 ```
 
+`curl` example for `POST /api/flights`:
+
+```bash
+curl -X POST "http://localhost/api/flights" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "flight_number": "PS321",
+    "origin": "KBP",
+    "destination": "AMS",
+    "departure_at": "2026-05-10 10:30:00",
+    "status": "scheduled"
+  }'
+```
+
 Response example for `POST /api/flights`:
 
 ```json
@@ -212,6 +249,7 @@ Response example for `POST /api/flights`:
     "flight_number": "PS321",
     "origin": "KBP",
     "destination": "AMS",
+    "gate": null,
     "departure_at": "2026-05-10T10:30:00+00:00",
     "departed_at": null,
     "status": "scheduled",
@@ -231,6 +269,7 @@ Response example for `GET /api/flights`:
       "flight_number": "LH202",
       "origin": "BER",
       "destination": "FRA",
+      "gate": "B07",
       "departure_at": "2026-04-24T14:40:00+00:00",
       "departed_at": null,
       "status": "boarding",
@@ -242,6 +281,7 @@ Response example for `GET /api/flights`:
       "flight_number": "PS101",
       "origin": "KBP",
       "destination": "WAW",
+      "gate": null,
       "departure_at": "2026-04-23T09:15:00+00:00",
       "departed_at": null,
       "status": "scheduled",
@@ -261,6 +301,7 @@ Response example for `GET /api/flights/{id}`:
     "flight_number": "PS101",
     "origin": "KBP",
     "destination": "WAW",
+    "gate": null,
     "departure_at": "2026-04-23T09:15:00+00:00",
     "departed_at": null,
     "status": "scheduled",
@@ -268,6 +309,67 @@ Response example for `GET /api/flights/{id}`:
     "updated_at": "2026-04-22T12:00:00+00:00"
   }
 }
+```
+
+Response example for `POST /api/flights/{id}/sync-status`:
+
+```json
+{
+  "data": {
+    "id": 1,
+    "flight_number": "PS101",
+    "origin": "KBP",
+    "destination": "WAW",
+    "gate": "A12",
+    "departure_at": "2026-04-24T11:45:00+00:00",
+    "departed_at": null,
+    "status": "boarding",
+    "created_at": "2026-04-22T12:00:00+00:00",
+    "updated_at": "2026-04-23T08:50:00+00:00"
+  }
+}
+```
+
+`curl` example for `POST /api/flights/{id}/sync-status`:
+
+```bash
+curl -X POST "http://localhost/api/flights/1/sync-status" \
+  -H "Accept: application/json"
+```
+
+External sync details:
+- the app calls a mock airline endpoint via Laravel HTTP client
+- synced fields are `status`, `departure_at`, and optional `gate`
+- if the external service fails, the API returns `502 Bad Gateway`
+
+Error response example for failed sync:
+
+```json
+{
+  "message": "Unable to sync flight status from external airline service.",
+  "errors": {
+    "external_service": [
+      "Unable to sync flight status from external airline service."
+    ]
+  }
+}
+```
+
+Local mock airline endpoint:
+- `GET /mock-airline/flights/{flightNumber}/status`
+- supports optional query params: `current_status`, `status`, `departed_at`, `gate`
+- valid transitions:
+  `scheduled -> delayed|boarding|cancelled`,
+  `delayed -> cancelled|boarding`,
+  `boarding -> departed`
+- returns `departed_at` only when the next status is `departed`
+- returns `gate` only for `scheduled`, `delayed`, or `boarding`
+- default `.env` points `AIRLINE_STATUS_BASE_URL` to `${APP_URL}/mock-airline`
+
+Example:
+
+```bash
+curl "http://localhost/mock-airline/flights/PS321/status?current_status=scheduled&status=boarding&gate=A12"
 ```
 
 ### Passengers
@@ -294,6 +396,21 @@ Request example for `POST /api/passengers`:
   "birthday": "1995-08-14",
   "document_number": "AB123456"
 }
+```
+
+`curl` example for `POST /api/passengers`:
+
+```bash
+curl -X POST "http://localhost/api/passengers" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "first_name": "Iryna",
+    "last_name": "Melnyk",
+    "email": "iryna.melnyk@example.test",
+    "birthday": "1995-08-14",
+    "document_number": "AB123456"
+  }'
 ```
 
 Response example for `POST /api/passengers`:
@@ -344,6 +461,18 @@ Request example for `POST /api/flights/{id}/reservations`:
   "passenger_id": 5,
   "seat_number": "12C"
 }
+```
+
+`curl` example for `POST /api/flights/{id}/reservations`:
+
+```bash
+curl -X POST "http://localhost/api/flights/1/reservations" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "passenger_id": 5,
+    "seat_number": "12C"
+  }'
 ```
 
 Response example for `POST /api/flights/{id}/reservations`:
@@ -408,6 +537,13 @@ Request example for `POST /api/reservations/{id}/check-in`:
 
 ```json
 {}
+```
+
+`curl` example for `POST /api/reservations/{id}/check-in`:
+
+```bash
+curl -X POST "http://localhost/api/reservations/9/check-in" \
+  -H "Accept: application/json"
 ```
 
 Response example for `POST /api/reservations/{id}/check-in`:

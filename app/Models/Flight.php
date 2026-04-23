@@ -20,6 +20,7 @@ class Flight extends Model
         'flight_number',
         'origin',
         'destination',
+        'gate',
         'departure_at',
         'departed_at',
         'status',

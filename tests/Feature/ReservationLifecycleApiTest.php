@@ -37,6 +37,26 @@ class ReservationLifecycleApiTest extends TestCase
         $this->assertSame($reservation->id, $job->reservationId);
     }
 
+    public function test_generate_boarding_pass_job_writes_boarding_pass_code_for_checked_in_reservation(): void
+    {
+        $reservation = $this->validCheckInReservation([
+            'status' => ReservationStatus::CheckedIn,
+            'checked_in_at' => now()->subMinute(),
+            'boarding_pass_code' => null,
+        ]);
+
+        $job = new GenerateBoardingPassCode($reservation->id);
+        $job->handle();
+
+        $reservation->refresh();
+
+        $this->assertNotNull($reservation->boarding_pass_code);
+        $this->assertStringStartsWith(
+            "{$reservation->flight->flight_number}-{$reservation->seat_number}-",
+            $reservation->boarding_pass_code,
+        );
+    }
+
     public function test_check_in_dispatches_boarding_pass_job_with_delay(): void
     {
         Bus::fake();
